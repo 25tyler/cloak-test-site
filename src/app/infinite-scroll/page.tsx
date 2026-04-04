@@ -367,19 +367,25 @@ export default function InfiniteScrollPage() {
     const [initialLoad, setInitialLoad] = useState(true);
     const sentinelRef = useRef<HTMLDivElement>(null);
 
+    const pageRef = useRef(0);
+    const loadingRef = useRef(false);
     const loadMore = useCallback(() => {
-        if (loading) return;
+        if (loadingRef.current) return;
+        loadingRef.current = true;
         setLoading(true);
 
         // Simulate network delay
         setTimeout(() => {
-            const newArticles = generateArticles(page);
+            const currentPage = pageRef.current;
+            const newArticles = generateArticles(currentPage);
+            pageRef.current = currentPage + 1;
             setArticles((prev) => [...prev, ...newArticles]);
-            setPage((prev) => prev + 1);
+            setPage(currentPage + 1);
+            loadingRef.current = false;
             setLoading(false);
             setInitialLoad(false);
         }, initialLoad ? 0 : 500);
-    }, [page, loading, initialLoad]);
+    }, [initialLoad]);
 
     // Load initial batch
     useEffect(() => {
