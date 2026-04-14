@@ -30,6 +30,7 @@ const navLinks = [
     { href: "/spa-nav", label: "SPA Nav" },
     { href: "/re-renders", label: "Re-renders" },
     { href: "/rich-content", label: "Rich Content" },
+    { href: "/skipped-text", label: "Skipped Text" },
 ];
 
 const cloakApiUrl =
@@ -75,26 +76,11 @@ export default function RootLayout({
 
                 {/* ── Cloak SDK ── */}
                 <Script
-                    src={`${cloakApiUrl}/sdk/cloak.js`}
+                    src={`${cloakApiUrl}/sdk.js`}
                     strategy="afterInteractive"
-                />
-                <Script
-                    id="cloak-init"
-                    strategy="afterInteractive"
-                    dangerouslySetInnerHTML={{
-                        __html: `
-                            (function waitForCloak() {
-                                if (typeof CloakSDK !== 'undefined') {
-                                    CloakSDK.init({
-                                        apiKey: 'test-key',
-                                        apiBaseUrl: '${cloakApiUrl}'
-                                    });
-                                } else {
-                                    setTimeout(waitForCloak, 50);
-                                }
-                            })();
-                        `,
-                    }}
+                    data-api-key="test-key"
+                    data-api-url={cloakApiUrl}
+                    data-debug=""
                 />
             </body>
         </html>
