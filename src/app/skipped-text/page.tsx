@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
 /**
  * Skipped-text diagnostic page.
  *
@@ -36,50 +34,84 @@ const canaries = [
     { id: "plain-open-shadow-excluded", word: "IGLOO", label: "open shadow w/ exclude" },
 ];
 
+// Register the custom elements once at module load time. Defining
+// them as native Web Components means connectedCallback runs reliably
+// during element insertion — and crucially, we can delay the
+// attachShadow call until window.CloakSDK exists, guaranteeing that
+// the SDK's monkey-patch catches the shadow root creation.
+if (typeof window !== "undefined" && !customElements.get("harpoon-card")) {
+    const waitForCloakThen = (fn: () => void) => {
+        if ((window as unknown as { CloakSDK?: unknown }).CloakSDK) {
+            fn();
+            return;
+        }
+        // Poll briefly. The SDK loader typically injects CloakSDK
+        // within a couple of animation frames of page load.
+        let tries = 0;
+        const iv = setInterval(() => {
+            tries++;
+            if ((window as unknown as { CloakSDK?: unknown }).CloakSDK || tries > 50) {
+                clearInterval(iv);
+                fn();
+            }
+        }, 50);
+    };
+
+    class HarpoonCard extends HTMLElement {
+        connectedCallback() {
+            const self = this;
+            waitForCloakThen(() => {
+                if ((self as HTMLElement & { _built?: boolean })._built) return;
+                (self as HTMLElement & { _built?: boolean })._built = true;
+                const root = self.attachShadow({ mode: "closed" });
+                root.innerHTML = `
+                    <style>
+                        .card { padding: 1rem; border: 2px dashed #f59e0b; background: #fffbeb; border-radius: 0.5rem; color: #78350f; font-family: inherit; }
+                        .card h3 { margin: 0 0 0.5rem; font-weight: 700; }
+                        .card p { margin: 0; line-height: 1.5; }
+                    </style>
+                    <div class="card">
+                        <h3>HARPOON Canary Title</h3>
+                        <p>This paragraph lives inside a closed shadow root. The word HARPOON appears only here. If Cloak can find it, the walker is reaching closed shadow content.</p>
+                    </div>
+                `;
+            });
+        }
+    }
+    customElements.define("harpoon-card", HarpoonCard);
+
+    class IglooCard extends HTMLElement {
+        connectedCallback() {
+            const self = this;
+            waitForCloakThen(() => {
+                if ((self as HTMLElement & { _built?: boolean })._built) return;
+                (self as HTMLElement & { _built?: boolean })._built = true;
+                const root = self.attachShadow({ mode: "open" });
+                root.innerHTML = `
+                    <style>
+                        .card { padding: 1rem; border: 2px solid #10b981; background: #ecfdf5; border-radius: 0.5rem; color: #064e3b; font-family: inherit; }
+                        .card h3 { margin: 0 0 0.5rem; font-weight: 700; }
+                        .card p { margin: 0; line-height: 1.5; }
+                    </style>
+                    <div class="card" data-cloak-exclude>
+                        <h3>IGLOO Canary Title</h3>
+                        <p>This card is inside an OPEN shadow root but the card element itself has data-cloak-exclude. The word IGLOO appears only here.</p>
+                    </div>
+                `;
+            });
+        }
+    }
+    customElements.define("igloo-card", IglooCard);
+}
+
+declare global {
+    interface HTMLElementTagNameMap {
+        "harpoon-card": HTMLElement;
+        "igloo-card": HTMLElement;
+    }
+}
+
 export default function SkippedTextPage() {
-    const openHostRef = useRef<HTMLDivElement | null>(null);
-    const closedHostRef = useRef<HTMLDivElement | null>(null);
-
-    // Build a closed shadow root with HARPOON text inside. Because
-    // mode: "closed" means elem.shadowRoot is null from outside, Cloak's
-    // walker cannot enter it. This is the hardest case.
-    useEffect(() => {
-        const closed = closedHostRef.current;
-        if (closed && !(closed as HTMLDivElement & { _built?: boolean })._built) {
-            (closed as HTMLDivElement & { _built?: boolean })._built = true;
-            const root = closed.attachShadow({ mode: "closed" });
-            root.innerHTML = `
-                <style>
-                    .card { padding: 1rem; border: 2px dashed #f59e0b; background: #fffbeb; border-radius: 0.5rem; color: #78350f; font-family: inherit; }
-                    .card h3 { margin: 0 0 0.5rem; font-weight: 700; }
-                    .card p { margin: 0; line-height: 1.5; }
-                </style>
-                <div class="card">
-                    <h3>HARPOON Canary Title</h3>
-                    <p>This paragraph lives inside a closed shadow root. The word HARPOON appears only here. If Cloak can find it, the walker is reaching closed shadow content. If only the browser's native Cmd+F finds it, the browser text index includes closed shadow content but JS cannot reach it via element.shadowRoot.</p>
-                </div>
-            `;
-        }
-
-        // Open shadow root, but with data-cloak-exclude on the card itself
-        // to test "explicitly-excluded subtree inside an OPEN shadow root".
-        const open = openHostRef.current;
-        if (open && !(open as HTMLDivElement & { _built?: boolean })._built) {
-            (open as HTMLDivElement & { _built?: boolean })._built = true;
-            const root = open.attachShadow({ mode: "open" });
-            root.innerHTML = `
-                <style>
-                    .card { padding: 1rem; border: 2px solid #10b981; background: #ecfdf5; border-radius: 0.5rem; color: #064e3b; font-family: inherit; }
-                    .card h3 { margin: 0 0 0.5rem; font-weight: 700; }
-                    .card p { margin: 0; line-height: 1.5; }
-                </style>
-                <div class="card" data-cloak-exclude>
-                    <h3>IGLOO Canary Title</h3>
-                    <p>This card is inside an OPEN shadow root but the card element itself has data-cloak-exclude. The SDK should skip its text even though the walker can enter open shadow roots. The word IGLOO appears only here.</p>
-                </div>
-            `;
-        }
-    }, []);
 
     return (
         <main className="mx-auto max-w-3xl px-4 py-12 text-zinc-900 dark:text-zinc-100">
@@ -240,7 +272,7 @@ export default function SkippedTextPage() {
                 title="8. Closed shadow root"
                 description="mode: 'closed' — elem.shadowRoot returns null. JS cannot reach the content. Canary: HARPOON."
             >
-                <div ref={closedHostRef} />
+                <harpoon-card />
             </Region>
 
             {/* ── Region 9: open shadow with exclude ── */}
@@ -249,7 +281,7 @@ export default function SkippedTextPage() {
                 title="9. Open shadow root with data-cloak-exclude inside"
                 description="Walker CAN enter the shadow root but should honor the exclude attribute. Canary: IGLOO."
             >
-                <div ref={openHostRef} />
+                <igloo-card />
             </Region>
 
             {/* ── Control: a known-encrypted paragraph for comparison ── */}
