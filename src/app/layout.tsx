@@ -31,6 +31,8 @@ const navLinks = [
     { href: "/re-renders", label: "Re-renders" },
     { href: "/rich-content", label: "Rich Content" },
     { href: "/skipped-text", label: "Skipped Text" },
+    { href: "/formatting", label: "Formatting" },
+    { href: "/formatting-plain", label: "Formatting (Plain)" },
 ];
 
 const cloakApiUrl =
