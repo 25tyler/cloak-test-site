@@ -17,10 +17,21 @@
 
 export default function FormattingPlainPage() {
     return (
-        <main
-            data-cloak-exclude
-            className="mx-auto max-w-3xl px-4 py-12 text-zinc-900 dark:text-zinc-100"
-        >
+        <>
+            {/* Inter via Google Fonts. Same as /formatting — both
+              * pages use the same downloadable web font so they
+              * compare fairly. The data-cloak-exclude on <main>
+              * prevents Cloak from touching the article subtree. */}
+            {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+            <link
+                href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&display=block"
+                rel="stylesheet"
+            />
+            <main
+                data-cloak-exclude
+                className="mx-auto max-w-3xl px-4 py-12 text-zinc-900 dark:text-zinc-100"
+                style={{ fontFamily: "Inter, sans-serif" }}
+            >
             <header className="mb-10 border-b border-zinc-200 pb-8 dark:border-zinc-800">
                 <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
                     SDK Diagnostic (uncloaked)
@@ -437,5 +448,6 @@ greet("there");`}
                 </p>
             </article>
         </main>
+        </>
     );
 }
