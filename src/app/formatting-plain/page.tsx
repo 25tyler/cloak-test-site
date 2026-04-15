@@ -9,11 +9,239 @@
  *
  * Use it as a visual reference to compare against /formatting: any
  * difference in rendering between the two pages is introduced by
- * Cloak. If the encrypted page looks subtly wrong (wrong font weight,
- * missing ligature, drifting highlight, broken line break), check
- * this page to confirm the markup itself renders correctly in the
- * browser's default state.
+ * Cloak. The font substitution matrix at the bottom is the most
+ * direct comparison — every row uses a proprietary font name, so
+ * this page shows what the OS resolves it to and /formatting shows
+ * what Cloak's substitute looks like.
  */
+
+// Mirrors FONT_GROUPS in /formatting/page.tsx — keep in sync.
+type FontTest = { label: string; substitute: string; family: string };
+const FONT_GROUPS: { title: string; tests: FontTest[] }[] = [
+    {
+        title: "Apple SF family → Inter / Inter Tight / Nunito / JetBrains Mono",
+        tests: [
+            { label: "SF Pro", substitute: "Inter", family: '"SF Pro", sans-serif' },
+            { label: "SF Pro Display", substitute: "Inter", family: '"SF Pro Display", sans-serif' },
+            { label: "SF Pro Text", substitute: "Inter", family: '"SF Pro Text", sans-serif' },
+            { label: "San Francisco", substitute: "Inter", family: '"San Francisco", sans-serif' },
+            { label: "SF Compact", substitute: "Inter Tight", family: '"SF Compact", sans-serif' },
+            { label: "SF Compact Display", substitute: "Inter Tight", family: '"SF Compact Display", sans-serif' },
+            { label: "SF Compact Rounded", substitute: "Nunito", family: '"SF Compact Rounded", sans-serif' },
+            { label: "SF Pro Rounded", substitute: "Nunito", family: '"SF Pro Rounded", sans-serif' },
+            { label: "SF Mono", substitute: "JetBrains Mono", family: '"SF Mono", monospace' },
+            { label: "SF Arabic", substitute: "IBM Plex Sans Arabic", family: '"SF Arabic", sans-serif' },
+            { label: "SF Hebrew", substitute: "Heebo", family: '"SF Hebrew", sans-serif' },
+        ],
+    },
+    {
+        title: "system-ui invocations → Inter / Source Serif 4 / JetBrains Mono / Nunito",
+        tests: [
+            { label: "-apple-system", substitute: "Inter", family: '-apple-system, sans-serif' },
+            { label: "BlinkMacSystemFont", substitute: "Inter", family: 'BlinkMacSystemFont, sans-serif' },
+            { label: "system-ui", substitute: "Inter", family: 'system-ui, sans-serif' },
+            { label: "ui-sans-serif", substitute: "Inter", family: 'ui-sans-serif, sans-serif' },
+            { label: "ui-serif", substitute: "Source Serif 4", family: 'ui-serif, serif' },
+            { label: "ui-monospace", substitute: "JetBrains Mono", family: 'ui-monospace, monospace' },
+            { label: "ui-rounded", substitute: "Nunito", family: 'ui-rounded, sans-serif' },
+        ],
+    },
+    {
+        title: "Apple New York → Source Serif 4",
+        tests: [
+            { label: "New York", substitute: "Source Serif 4", family: '"New York", serif' },
+            { label: "Apple New York", substitute: "Source Serif 4", family: '"Apple New York", serif' },
+        ],
+    },
+    {
+        title: "Classic Mac fonts → Inter / JetBrains Mono / Pinyon Script / EB Garamond",
+        tests: [
+            { label: "Geneva", substitute: "Inter", family: 'Geneva, sans-serif' },
+            { label: "Charcoal", substitute: "Inter", family: 'Charcoal, sans-serif' },
+            { label: "Chicago", substitute: "Inter", family: 'Chicago, sans-serif' },
+            { label: "Monaco", substitute: "JetBrains Mono", family: 'Monaco, monospace' },
+            { label: "Menlo", substitute: "JetBrains Mono", family: 'Menlo, monospace' },
+            { label: "Apple Chancery", substitute: "Pinyon Script", family: '"Apple Chancery", cursive' },
+            { label: "Apple Garamond", substitute: "EB Garamond", family: '"Apple Garamond", serif' },
+            { label: "Skia", substitute: "Inter", family: 'Skia, sans-serif' },
+        ],
+    },
+    {
+        title: "Helvetica / Arial → Inter / Arimo / Anton / Roboto Condensed",
+        tests: [
+            { label: "Helvetica", substitute: "Inter", family: 'Helvetica, sans-serif' },
+            { label: "Helvetica Neue", substitute: "Inter", family: '"Helvetica Neue", sans-serif' },
+            { label: "Helvetica Inserat", substitute: "Anton", family: '"Helvetica Inserat", sans-serif' },
+            { label: "Arial", substitute: "Arimo", family: 'Arial, sans-serif' },
+            { label: "Arial Nova", substitute: "Arimo", family: '"Arial Nova", sans-serif' },
+            { label: "Arial Narrow", substitute: "Roboto Condensed", family: '"Arial Narrow", sans-serif' },
+            { label: "Arial Black", substitute: "Inter", family: '"Arial Black", sans-serif' },
+            { label: "Liberation Sans", substitute: "Arimo", family: '"Liberation Sans", sans-serif' },
+            { label: "Nimbus Sans", substitute: "Arimo", family: '"Nimbus Sans", sans-serif' },
+        ],
+    },
+    {
+        title: "Foundry sans-serifs → Nunito Sans / Jost / Cabin / Inter / Lato / Public Sans / Barlow / Libre Franklin / Source Sans 3",
+        tests: [
+            { label: "Avenir", substitute: "Nunito Sans", family: 'Avenir, sans-serif' },
+            { label: "Avenir Next", substitute: "Nunito Sans", family: '"Avenir Next", sans-serif' },
+            { label: "Avenir Next Condensed", substitute: "Barlow Condensed", family: '"Avenir Next Condensed", sans-serif' },
+            { label: "Futura", substitute: "Jost", family: 'Futura, sans-serif' },
+            { label: "ITC Avant Garde Gothic", substitute: "Jost", family: '"ITC Avant Garde Gothic", sans-serif' },
+            { label: "Century Gothic", substitute: "Jost", family: '"Century Gothic", sans-serif' },
+            { label: "Gill Sans", substitute: "Cabin", family: '"Gill Sans", sans-serif' },
+            { label: "Gill Sans Nova", substitute: "Cabin", family: '"Gill Sans Nova", sans-serif' },
+            { label: "Optima", substitute: "Inter", family: 'Optima, sans-serif' },
+            { label: "Frutiger", substitute: "Lato", family: 'Frutiger, sans-serif' },
+            { label: "Univers", substitute: "Public Sans", family: 'Univers, sans-serif' },
+            { label: "Akzidenz-Grotesk", substitute: "Public Sans", family: '"Akzidenz-Grotesk", sans-serif' },
+            { label: "DIN", substitute: "Barlow", family: 'DIN, sans-serif' },
+            { label: "DIN Next", substitute: "Barlow", family: '"DIN Next", sans-serif' },
+            { label: "Trade Gothic", substitute: "Barlow Condensed", family: '"Trade Gothic", sans-serif' },
+            { label: "News Gothic", substitute: "Public Sans", family: '"News Gothic", sans-serif' },
+            { label: "Franklin Gothic", substitute: "Libre Franklin", family: '"Franklin Gothic", sans-serif' },
+            { label: "Myriad", substitute: "Source Sans 3", family: 'Myriad, sans-serif' },
+            { label: "Myriad Pro", substitute: "Source Sans 3", family: '"Myriad Pro", sans-serif' },
+        ],
+    },
+    {
+        title: "Microsoft Office / Windows → Inter / Carlito / Caladea / Open Sans / JetBrains Mono / Caveat / Inconsolata / Comic Neue / Anton / Nunito",
+        tests: [
+            { label: "Segoe UI", substitute: "Inter", family: '"Segoe UI", sans-serif' },
+            { label: "Segoe UI Light", substitute: "Inter", family: '"Segoe UI Light", sans-serif' },
+            { label: "Segoe UI Semibold", substitute: "Inter", family: '"Segoe UI Semibold", sans-serif' },
+            { label: "Segoe Print", substitute: "Caveat", family: '"Segoe Print", cursive' },
+            { label: "Segoe Script", substitute: "Caveat", family: '"Segoe Script", cursive' },
+            { label: "Calibri", substitute: "Carlito", family: 'Calibri, sans-serif' },
+            { label: "Calibri Light", substitute: "Carlito", family: '"Calibri Light", sans-serif' },
+            { label: "Cambria", substitute: "Caladea", family: 'Cambria, serif' },
+            { label: "Constantia", substitute: "Source Serif 4", family: 'Constantia, serif' },
+            { label: "Corbel", substitute: "Open Sans", family: 'Corbel, sans-serif' },
+            { label: "Candara", substitute: "Open Sans", family: 'Candara, sans-serif' },
+            { label: "Consolas", substitute: "JetBrains Mono", family: 'Consolas, monospace' },
+            { label: "Tahoma", substitute: "Inter", family: 'Tahoma, sans-serif' },
+            { label: "Verdana", substitute: "Inter", family: 'Verdana, sans-serif' },
+            { label: "Trebuchet MS", substitute: "Inter", family: '"Trebuchet MS", sans-serif' },
+            { label: "Lucida Sans", substitute: "Inter", family: '"Lucida Sans", sans-serif' },
+            { label: "Lucida Grande", substitute: "Inter", family: '"Lucida Grande", sans-serif' },
+            { label: "Lucida Bright", substitute: "Source Serif 4", family: '"Lucida Bright", serif' },
+            { label: "Lucida Console", substitute: "Inconsolata", family: '"Lucida Console", monospace' },
+            { label: "Comic Sans MS", substitute: "Comic Neue", family: '"Comic Sans MS", cursive' },
+            { label: "Impact", substitute: "Anton", family: 'Impact, sans-serif' },
+            { label: "Arial Rounded MT Bold", substitute: "Nunito", family: '"Arial Rounded MT Bold", sans-serif' },
+        ],
+    },
+    {
+        title: "Times / Georgia / serif families → Tinos / Gelasio / EB Garamond / Libre Baskerville / Libre Bodoni / Libre Caslon Text / Cardo / GFS Didot / Source Serif 4 / Cinzel",
+        tests: [
+            { label: "Times New Roman", substitute: "Tinos", family: '"Times New Roman", serif' },
+            { label: "Times", substitute: "Tinos", family: 'Times, serif' },
+            { label: "Liberation Serif", substitute: "Tinos", family: '"Liberation Serif", serif' },
+            { label: "Nimbus Roman", substitute: "Tinos", family: '"Nimbus Roman", serif' },
+            { label: "Georgia", substitute: "Gelasio", family: 'Georgia, serif' },
+            { label: "Georgia Pro", substitute: "Gelasio", family: '"Georgia Pro", serif' },
+            { label: "Palatino", substitute: "EB Garamond", family: 'Palatino, serif' },
+            { label: "Palatino Linotype", substitute: "EB Garamond", family: '"Palatino Linotype", serif' },
+            { label: "Book Antiqua", substitute: "EB Garamond", family: '"Book Antiqua", serif' },
+            { label: "Garamond", substitute: "EB Garamond", family: 'Garamond, serif' },
+            { label: "Adobe Garamond Pro", substitute: "EB Garamond", family: '"Adobe Garamond Pro", serif' },
+            { label: "ITC Garamond", substitute: "EB Garamond", family: '"ITC Garamond", serif' },
+            { label: "Baskerville", substitute: "Libre Baskerville", family: 'Baskerville, serif' },
+            { label: "Mrs Eaves", substitute: "Libre Baskerville", family: '"Mrs Eaves", serif' },
+            { label: "Bodoni", substitute: "Libre Bodoni", family: 'Bodoni, serif' },
+            { label: "Bodoni 72", substitute: "Libre Bodoni", family: '"Bodoni 72", serif' },
+            { label: "Caslon", substitute: "Libre Caslon Text", family: 'Caslon, serif' },
+            { label: "Adobe Caslon Pro", substitute: "Libre Caslon Text", family: '"Adobe Caslon Pro", serif' },
+            { label: "Big Caslon", substitute: "Libre Caslon Text", family: '"Big Caslon", serif' },
+            { label: "Hoefler Text", substitute: "Cardo", family: '"Hoefler Text", serif' },
+            { label: "Didot", substitute: "GFS Didot", family: 'Didot, serif' },
+            { label: "Minion Pro", substitute: "Source Serif 4", family: '"Minion Pro", serif' },
+            { label: "Trajan Pro", substitute: "Cinzel", family: '"Trajan Pro", serif' },
+        ],
+    },
+    {
+        title: "Monospace → Cousine / JetBrains Mono",
+        tests: [
+            { label: "Courier", substitute: "Cousine", family: 'Courier, monospace' },
+            { label: "Courier New", substitute: "Cousine", family: '"Courier New", monospace' },
+            { label: "Courier Prime", substitute: "Cousine", family: '"Courier Prime", monospace' },
+            { label: "Liberation Mono", substitute: "Cousine", family: '"Liberation Mono", monospace' },
+            { label: "Andale Mono", substitute: "JetBrains Mono", family: '"Andale Mono", monospace' },
+            { label: "DejaVu Sans Mono", substitute: "JetBrains Mono", family: '"DejaVu Sans Mono", monospace' },
+        ],
+    },
+    {
+        title: "Script / decorative → Allura / Caveat / Great Vibes",
+        tests: [
+            { label: "Snell Roundhand", substitute: "Allura", family: '"Snell Roundhand", cursive' },
+            { label: "Zapfino", substitute: "Allura", family: 'Zapfino, cursive' },
+            { label: "Brush Script MT", substitute: "Caveat", family: '"Brush Script MT", cursive' },
+            { label: "Lucida Calligraphy", substitute: "Allura", family: '"Lucida Calligraphy", cursive' },
+            { label: "Edwardian Script ITC", substitute: "Great Vibes", family: '"Edwardian Script ITC", cursive' },
+            { label: "Monotype Corsiva", substitute: "Great Vibes", family: '"Monotype Corsiva", cursive' },
+        ],
+    },
+    {
+        title: "Pass-through OFL fonts → identity (load directly from Google Fonts)",
+        tests: [
+            { label: "Inter", substitute: "Inter", family: 'Inter, sans-serif' },
+            { label: "Roboto", substitute: "Roboto", family: 'Roboto, sans-serif' },
+            { label: "Roboto Slab", substitute: "Roboto Slab", family: '"Roboto Slab", serif' },
+            { label: "Roboto Mono", substitute: "Roboto Mono", family: '"Roboto Mono", monospace' },
+            { label: "Open Sans", substitute: "Open Sans", family: '"Open Sans", sans-serif' },
+            { label: "Lato", substitute: "Lato", family: 'Lato, sans-serif' },
+            { label: "Source Sans 3", substitute: "Source Sans 3", family: '"Source Sans 3", sans-serif' },
+            { label: "Source Serif 4", substitute: "Source Serif 4", family: '"Source Serif 4", serif' },
+            { label: "JetBrains Mono", substitute: "JetBrains Mono", family: '"JetBrains Mono", monospace' },
+            { label: "Source Code Pro", substitute: "Source Code Pro", family: '"Source Code Pro", monospace' },
+            { label: "IBM Plex Sans", substitute: "IBM Plex Sans", family: '"IBM Plex Sans", sans-serif' },
+            { label: "IBM Plex Serif", substitute: "IBM Plex Serif", family: '"IBM Plex Serif", serif' },
+            { label: "IBM Plex Mono", substitute: "IBM Plex Mono", family: '"IBM Plex Mono", monospace' },
+            { label: "Nunito", substitute: "Nunito", family: 'Nunito, sans-serif' },
+            { label: "Mulish", substitute: "Mulish", family: 'Mulish, sans-serif' },
+            { label: "Cormorant Garamond", substitute: "Cormorant Garamond", family: '"Cormorant Garamond", serif' },
+            { label: "Lora", substitute: "Lora", family: 'Lora, serif' },
+            { label: "Bebas Neue", substitute: "Bebas Neue", family: '"Bebas Neue", sans-serif' },
+            { label: "Oswald", substitute: "Oswald", family: 'Oswald, sans-serif' },
+            { label: "Lobster", substitute: "Lobster", family: 'Lobster, cursive' },
+            { label: "Bungee", substitute: "Bungee", family: 'Bungee, sans-serif' },
+        ],
+    },
+    {
+        title: "Generic CSS family keywords → Inter / Source Serif 4 / JetBrains Mono / Caveat / Lobster",
+        tests: [
+            { label: "sans-serif", substitute: "Inter", family: 'sans-serif' },
+            { label: "serif", substitute: "Source Serif 4", family: 'serif' },
+            { label: "monospace", substitute: "JetBrains Mono", family: 'monospace' },
+            { label: "cursive", substitute: "Caveat", family: 'cursive' },
+            { label: "fantasy", substitute: "Lobster", family: 'fantasy' },
+        ],
+    },
+];
+
+function FontMatrixRow({ test }: { test: FontTest }) {
+    const sample = "The quick brown fox jumps over the lazy dog 0123";
+    return (
+        <tr className="border-b border-zinc-200 align-top dark:border-zinc-800">
+            <td className="py-2 pr-4 text-xs text-zinc-500 whitespace-nowrap">
+                <div className="font-mono">{test.label}</div>
+                <div className="text-[10px] text-zinc-400">→ {test.substitute}</div>
+            </td>
+            <td className="py-2 pr-3" style={{ fontFamily: test.family, fontWeight: 400, fontStyle: "normal" }}>
+                {sample}
+            </td>
+            <td className="py-2 pr-3" style={{ fontFamily: test.family, fontWeight: 700, fontStyle: "normal" }}>
+                {sample}
+            </td>
+            <td className="py-2 pr-3" style={{ fontFamily: test.family, fontWeight: 400, fontStyle: "italic" }}>
+                {sample}
+            </td>
+            <td className="py-2" style={{ fontFamily: test.family, fontWeight: 700, fontStyle: "italic" }}>
+                {sample}
+            </td>
+        </tr>
+    );
+}
 
 export default function FormattingPlainPage() {
     return (
@@ -437,7 +665,49 @@ greet("there");`}
 
                 <hr className="my-10 border-zinc-200 dark:border-zinc-800" />
 
-                <p className="text-sm text-zinc-500">
+                {/* ── Section 13: font substitution matrix ── */}
+                <h2 className="mt-10 text-3xl font-bold tracking-tight">
+                    XIII. Font substitution matrix
+                </h2>
+                <p>
+                    Every row below requests a proprietary or system
+                    font by its real CSS name. On this page nothing is
+                    encrypted, so each row renders with whatever the
+                    operating system has installed locally (or the next
+                    fallback in the stack). Compare against{" "}
+                    <a href="/formatting" className="text-indigo-600 underline dark:text-indigo-400">
+                        /formatting
+                    </a>
+                    , where Cloak swaps in the closest free Google
+                    Fonts substitute (shown in grey under each label).
+                </p>
+                {FONT_GROUPS.map((group) => (
+                    <section key={group.title} className="mt-8">
+                        <h3 className="text-xl font-semibold text-zinc-700 dark:text-zinc-300">
+                            {group.title}
+                        </h3>
+                        <div className="mt-3 overflow-x-auto">
+                            <table className="w-full border-collapse text-sm">
+                                <thead>
+                                    <tr className="border-b-2 border-zinc-300 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
+                                        <th className="py-2 pr-4">Font</th>
+                                        <th className="py-2 pr-3">400</th>
+                                        <th className="py-2 pr-3">700</th>
+                                        <th className="py-2 pr-3">400 italic</th>
+                                        <th className="py-2">700 italic</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {group.tests.map((test) => (
+                                        <FontMatrixRow key={test.label} test={test} />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                ))}
+
+                <p className="mt-10 text-sm text-zinc-500">
                     The end of the unencrypted reference article. Compare
                     side by side against{" "}
                     <a href="/formatting" className="text-indigo-600 underline dark:text-indigo-400">
