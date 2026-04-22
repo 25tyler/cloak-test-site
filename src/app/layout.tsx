@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import Script from "next/script";
 import "./globals.css";
+import RedeploySdkButton from "@/components/RedeploySdkButton";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -33,6 +34,7 @@ const navLinks = [
     { href: "/skipped-text", label: "Skipped Text" },
     { href: "/formatting", label: "Formatting" },
     { href: "/formatting-plain", label: "Formatting (Plain)" },
+    { href: "/languages", label: "Languages" },
 ];
 
 const cloakApiUrl =
@@ -46,6 +48,7 @@ export default function RootLayout({
     return (
         <html
             lang="en"
+            suppressHydrationWarning
             className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
         >
             <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
@@ -70,8 +73,12 @@ export default function RootLayout({
                                 </Link>
                             ))}
                         </div>
+
                     </div>
                 </nav>
+
+                {/* Floating bottom-right dev toolbar — always visible. */}
+                <RedeploySdkButton />
 
                 {/* ── Page content ── */}
                 <main className="flex-1">{children}</main>
