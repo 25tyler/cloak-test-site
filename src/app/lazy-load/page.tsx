@@ -93,8 +93,17 @@ function Skeleton({ lines = 6 }: { lines?: number }) {
     return (
         <div className="animate-pulse space-y-3">
             {Array.from({ length: lines }).map((_, i) => (
+                // suppressHydrationWarning — the random width is purely
+                // decorative; we want a different random each render so
+                // the placeholder doesn't look uniform. Without this
+                // attribute React 19 (correctly) flags the
+                // server/client width mismatch as a hydration warning,
+                // which spams the console and was misread as "Cloak is
+                // breaking the page". The actual rendered placeholder
+                // looks identical either way.
                 <div
                     key={i}
+                    suppressHydrationWarning
                     className="h-4 rounded bg-zinc-200 dark:bg-zinc-800"
                     style={{ width: `${70 + Math.random() * 30}%` }}
                 />
