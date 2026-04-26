@@ -150,8 +150,30 @@ export default function RedeploySdkButton() {
         }
     }, []);
 
-    const reload = useCallback(() => {
-        window.location.reload();
+    // Bfcache-bypassing reload. window.location.reload() can be served
+    // from Chrome's back/forward cache, which restores the previous
+    // DOM (including SDK markers like data-cloak-encrypted and
+    // <meta name="cloak-nonce">). The SDK's per-page prerender
+    // detection then enters its fast-path against stale state, and
+    // useEffect-driven content (infinite-scroll articles, lazy-load
+    // sections, hydration ticker) never re-fires because React's
+    // component instances are restored, not re-mounted. Symptom:
+    // user clicks "Reload" or "Reset Cache" or hits Cmd+R, server-
+    // side everything is fresh, but the page still looks like the
+    // pre-reload state. Bypassing bfcache requires the URL to
+    // change — appending a single-shot query is the simplest way.
+    // We use `replace` so the cache-buster doesn't pile up in
+    // history (back button still goes to the user's previous page,
+    // not to "this same page minus the buster").
+    const hardReload = useCallback(() => {
+        try {
+            const u = new URL(window.location.href);
+            u.searchParams.set("_cloakReset", String(Date.now()));
+            window.location.replace(u.toString());
+        } catch {
+            // Fallback for any exotic URL the URL constructor refuses.
+            window.location.reload();
+        }
     }, []);
 
     // Reset-cache: hits POST /api/dev/reset-cache on the Cloak API, which
@@ -181,8 +203,12 @@ export default function RedeploySdkButton() {
                 .reduce((acc, [, v]) => acc + (typeof v === "number" ? v : 0), 0);
             setResetPhase("done");
             setResetMsg(`cleared ${total} cached entries — reloading…`);
-            // Hard reload so the SDK re-initializes against the emptied server.
-            setTimeout(() => window.location.reload(), 400);
+            // Bypass bfcache so the user actually sees the fresh-state
+            // first-visit flow (origin-plain → async cipher → cipher-hit).
+            // window.location.reload() can be served from bfcache, which
+            // would restore the previous DOM and make the cache wipe
+            // visually invisible.
+            setTimeout(hardReload, 400);
         } catch (e: unknown) {
             setResetPhase("error");
             const msg = e instanceof Error ? e.message : String(e);
@@ -240,7 +266,7 @@ export default function RedeploySdkButton() {
             {phase === "done" && (
                 <button
                     type="button"
-                    onClick={reload}
+                    onClick={hardReload}
                     className="shrink-0 rounded-lg bg-zinc-700 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-600"
                 >
                     Reload
